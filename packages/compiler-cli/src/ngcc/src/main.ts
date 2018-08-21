@@ -6,18 +6,19 @@
  * found in the LICENSE file at https://angular.io/license
  */
 import {existsSync, lstatSync, readFileSync, readdirSync} from 'fs';
-import {basename, resolve} from 'path';
+import {posix as path} from 'path';
 
 import {PackageTransformer} from './transform/package_transformer';
 
 export function mainNgcc(args: string[]): number {
   const formats = args[0] ? args[0].split(',') : ['fesm2015', 'esm2015', 'fesm5', 'esm5'];
-  const packagePaths = args[1] ? [resolve(args[1])] : findPackagesToCompile();
+  const packagePaths = args[1] ? [path.resolve(args[1])] : findPackagesToCompile();
   const targetPath = args[2] ? args[2] : 'node_modules';
 
   const transformer = new PackageTransformer();
   packagePaths.forEach(packagePath => {
     formats.forEach(format => {
+      // TODO: remove before flight
       console.warn(`Compiling ${packagePath} : ${format}`);
       transformer.transform(packagePath, format, targetPath);
     });
@@ -39,14 +40,13 @@ export function mainNgcc(args: string[]): number {
  * - do not have an appropriate metadata.json file
  *
  * @param folderPath The absolute path to the folder.
- * @param folderName The final segment of the folder path.
  */
 function hasMetadataFile(folderPath: string): boolean {
-  const folderName = basename(folderPath);
-  if (lstatSync(folderPath).isSymbolicLink() || folderName === 'node_modules') {
+  const folderName = path.basename(folderPath);
+  if (folderName === 'node_modules' || lstatSync(folderPath).isSymbolicLink()) {
     return false;
   }
-  const packageJsonPath = resolve(folderPath, 'package.json');
+  const packageJsonPath = path.join(folderPath, 'package.json');
   if (!existsSync(packageJsonPath)) {
     return false;
   }
@@ -56,33 +56,36 @@ function hasMetadataFile(folderPath: string): boolean {
   }
   // TODO: avoid if packageJson contains built marker
   const metadataPath =
-      resolve(folderPath, packageJson.typings.replace(/\.d\.ts$/, '.metadata.json'));
+      path.join(folderPath, packageJson.typings.replace(/\.d\.ts$/, '.metadata.json'));
   return existsSync(metadataPath);
 }
 
 /**
  * Look for packages that need to be compiled.
  * The function will recurse into folders that start with `@...`, e.g. `@angular/...`.
- *  Without an argument it starts at `node_modules`.
+ * Without an argument it starts at `node_modules`.
  */
 function findPackagesToCompile(folder: string = 'node_modules'): string[] {
-  const path = resolve(folder);
+  const fullPath = path.resolve(folder);
   const packagesToCompile: string[] = [];
-  readdirSync(path).filter(p => !p.startsWith('.')).forEach(p => {
-    const packagePath = resolve(path, p);
-    if (p.startsWith('@')) {
-      packagesToCompile.push(...findPackagesToCompile(packagePath));
-    } else {
-      packagesToCompile.push(packagePath);
-    }
-  });
+  readdirSync(fullPath)
+      .filter(p => !p.startsWith('.'))
+      .filter(p => lstatSync(path.join(fullPath, p)).isDirectory())
+      .forEach(p => {
+        const packagePath = path.join(fullPath, p);
+        if (p.startsWith('@')) {
+          packagesToCompile.push(...findPackagesToCompile(packagePath));
+        } else {
+          packagesToCompile.push(packagePath);
+        }
+      });
 
   return packagesToCompile.filter(path => recursiveDirTest(path, hasMetadataFile));
 }
 
 function recursiveDirTest(dir: string, test: (dir: string) => boolean): boolean {
   return test(dir) || readdirSync(dir).some(segment => {
-    const path = resolve(dir, segment);
-    return lstatSync(path).isDirectory() && recursiveDirTest(path, test);
+    const fullPath = path.join(dir, segment);
+    return lstatSync(fullPath).isDirectory() && recursiveDirTest(fullPath, test);
   });
 }
