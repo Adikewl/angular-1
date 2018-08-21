@@ -26,6 +26,8 @@ export class Esm2015ReflectionHost extends Fesm2015ReflectionHost {
       const sourcePath = clazz.getSourceFile();
       const dtsPath = this.dtsMapper.getDtsFileNameFor(sourcePath.fileName);
       const dtsContents = readFileSync(dtsPath, 'utf8');
+      // TODO: investigate caching parsed .d.ts files as they're needed for several different
+      // purposes in ngcc.
       const dtsFile = ts.createSourceFile(
           dtsPath, dtsContents, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
 

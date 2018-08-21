@@ -24,7 +24,6 @@ import {FileParser} from '../parsing/file_parser';
 import {Esm2015Renderer} from '../rendering/esm2015_renderer';
 import {Esm5Renderer} from '../rendering/esm5_renderer';
 import {FileInfo, Renderer} from '../rendering/renderer';
-import {isDefined} from '../utils';
 
 import {getEntryPoints} from './utils';
 

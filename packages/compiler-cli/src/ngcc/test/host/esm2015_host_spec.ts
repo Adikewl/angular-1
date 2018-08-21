@@ -34,7 +34,7 @@ const CLASSES = [
 
 describe('Esm2015ReflectionHost', () => {
   describe('getGenericArityOfClass()', () => {
-    it('should return null', () => {
+    it('should properly count type parameters', () => {
       // Mock out reading the `d.ts` file from disk
       const readFileSyncSpy = spyOn(fs, 'readFileSync').and.returnValue(CLASSES[1].contents);
       const program = makeProgram(CLASSES[0]);
